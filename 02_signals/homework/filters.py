@@ -20,7 +20,20 @@ def conv_nested(image, kernel):
     out = np.zeros((Hi, Wi))
 
     ### YOUR CODE HERE
-    pass
+    for i in range(Hi):
+        for j in range(Wi):
+            conv = 0
+            for k in range(Hk):
+                for l in range(Wk):
+                    ko = k - Hk // 2
+                    lo = l - Wk // 2
+                    val = 0 if (not 0 <= i + ko < Hi) or (not 0 <= j+lo < Wi) else image[i+ko, j+lo]
+                    conv += val * kernel[Hk - k - 1,Wk - l - 1]
+            out[i,j]=conv
+    
+    out -= out.min()
+    out *= 255 / out.max()
+    out = out.astype(image.dtype)
     ### END YOUR CODE
 
     return out
@@ -47,7 +60,8 @@ def zero_pad(image, pad_height, pad_width):
     out = np.zeros_like(image)
 
     ### YOUR CODE HERE
-    pass
+    out = np.zeros((H+pad_height*2, W+pad_width*2), dtype=image.dtype)
+    out[pad_height:H+pad_height, pad_width:W+pad_width] = image.copy()
     ### END YOUR CODE
     return out
 
@@ -76,7 +90,20 @@ def conv_fast(image, kernel):
     out = np.zeros((Hi, Wi))
 
     ### YOUR CODE HERE
-    pass
+    kernel = np.flip(kernel,0)
+    kernel = np.flip(kernel,1)
+    
+    H_pad = Hk // 2
+    W_pad = Wk // 2
+    image = zero_pad(image, H_pad, W_pad)
+
+    for i in range(Hi):
+        for j in range(Wi):
+            out[i, j] = np.sum(image[i:i+Hk,j:j+Wk]*kernel)
+    
+    out -= out.min()
+    out *= 255 / out.max()
+    out = out.astype(image.dtype)
     ### END YOUR CODE
 
     return out
@@ -95,7 +122,14 @@ def conv_faster(image, kernel):
     out = np.zeros((Hi, Wi))
 
     ### YOUR CODE HERE
-    pass
+    image_fft = np.fft.fft2(image)
+    kernel_fft = np.fft.fft2(kernel, s=image.shape)
+    out = np.fft.ifft2(image_fft * kernel_fft)
+
+    out -= out.min()
+    out *= 255 / out.max()
+    out = np.abs(out)
+    out = out.astype(image.dtype)
     ### END YOUR CODE
 
     return out
@@ -113,9 +147,18 @@ def cross_correlation(f, g):
         out: numpy array of shape (Hf, Wf).
     """
 
-    out = np.zeros_like(f)
     ### YOUR CODE HERE
-    pass
+    Hi, Wi = f.shape
+    Hk, Wk = g.shape
+    out = np.zeros((Hi, Wi))
+
+    H_pad = Hk // 2
+    W_pad = Wk // 2
+    f = zero_pad(f, H_pad, W_pad)
+
+    for i in range(Hi):
+        for j in range(Wi):
+            out[i, j] = np.sum(f[i:i+Hk,j:j+Wk]*g)
     ### END YOUR CODE
 
     return out
@@ -137,7 +180,8 @@ def zero_mean_cross_correlation(f, g):
 
     out = np.zeros_like(f)
     ### YOUR CODE HERE
-    pass
+    g = g - g.mean()
+    out = cross_correlation(f,g)
     ### END YOUR CODE
 
     return out
@@ -161,7 +205,25 @@ def normalized_cross_correlation(f, g):
 
     out = np.zeros_like(f)
     ### YOUR CODE HERE
-    pass
+    Hi, Wi = f.shape
+    Hk, Wk = g.shape
+    out = np.zeros((Hi, Wi))
+
+    H_pad = Hk // 2
+    W_pad = Wk // 2
+    f = zero_pad(f, H_pad, W_pad)
+
+    g_mean = g.mean()
+    s_g = np.std(g)
+    g = (g-g_mean) / s_g
+
+    for i in range(Hi):
+        for j in range(Wi):
+            patch = f[i:i+Hk, j:j+Wk]
+            s_mean = np.std(patch)
+            s_f = np.std(patch)
+
+            out[i, j] = np.sum(((patch-s_mean)/s_f) * g)
     ### END YOUR CODE
 
     return out
